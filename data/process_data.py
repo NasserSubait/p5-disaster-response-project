@@ -16,7 +16,7 @@ def load_data(messages_filepath, categories_filepath):
 
 def clean_data(df):
     categories = df['categories'].str.split(';',expand=True)
-    row = categories.iloc[0]
+    row = categories.iloc[0].apply(lambda x: x.split('-')[0])
     category_colnames = row.to_list()
     categories.columns = category_colnames
 

@@ -1,17 +1,68 @@
 import sys
+import pandas as pd
+import numpy as np
+import sqlite3
+import re
+
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
+from nltk.stem.wordnet import WordNetLemmatizer
+nltk.download(['punkt', 'wordnet','stopwords'])
+
+from sklearn.metrics import confusion_matrix
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from sklearn.multioutput import MultiOutputClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import classification_report, accuracy_score
+
+
 
 
 def load_data(database_filepath):
-    pass
+    conn = sqlite3.connect('../data/DisasterDB.db')
+    df = pd.read_sql('select * from messages',con = conn)
+    X = df['message']
+    Y = df.drop(['id','message','original','genre'],axis=1)
+    category_names = Y.columns
+
+    return X, Y, category_names
 
 
 def tokenize(text):
-    pass
+    
+    text = text.lower()
+    text = re.sub(r"[^a-zA-Z0-9]"," ",text)
+    words = word_tokenize(text)
+    words = [w for w in words if w not in stopwords.words("english")]
+    lemmed = [WordNetLemmatizer().lemmatize(w) for w in words]
+    clear_text = [PorterStemmer().stem(w) for w in lemmed]
+    
+    return clear_text
 
 
 def build_model():
-    pass
+    
+    pipeline = Pipeline([
+        ('vect', CountVectorizer(tokenizer=tokenize)),
+        ('tfidf', TfidfTransformer()),
+        ('clf', MultiOutputClassifier(RandomForestClassifier()))
+    ])
 
+    param_grid = {
+        'clf__estimator__min_samples_split': [2, 4],
+        'clf__estimator__max_features': ['log2', 'auto'],
+        'clf__estimator__n_estimators': [100, 250],
+    }
+
+    cv = GridSearchCV(pipeline, param_grid=param_grid)
+
+    cv.fit(X_train,y_train)
+
+    return cv
 
 def evaluate_model(model, X_test, Y_test, category_names):
     pass
