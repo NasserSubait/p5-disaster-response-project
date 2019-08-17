@@ -4,6 +4,21 @@ import numpy as np
 import sqlite3
 
 def load_data(messages_filepath, categories_filepath):
+    
+    '''
+    loading data from two different files and merg them 
+
+    paramerter
+    -------------
+    messages_filepath: file path [str]
+    categories_filepath: file path [str]
+
+    return
+    ------------
+    df: a dataframe
+
+    ''' 
+    
     messages = pd.read_csv(messages_filepath)
     categories = pd.read_csv(categories_filepath)
     df = pd.merge(messages,categories,on='id')
@@ -11,10 +26,21 @@ def load_data(messages_filepath, categories_filepath):
     return df
 
     
-
-
-
 def clean_data(df):
+    
+    '''
+    clean the data
+
+    paramerter
+    -------------
+    df: dataframe
+
+    return
+    ------------
+    df: cleaned data frame 
+
+    ''' 
+
     categories = df['categories'].str.split(';',expand=True)
     row = categories.iloc[0].apply(lambda x: x.split('-')[0])
     category_colnames = row.to_list()
@@ -34,11 +60,40 @@ def clean_data(df):
 
 
 def save_data(df, database_filename):
+
+    '''
+    save the data to a sqlite database
+
+    paramerter
+    -------------
+    df: dataframe that need to be saved
+    database_filename: the name of the database [str]
+
+    return
+    ------------
+    None 
+
+    ''' 
+
     conn = sqlite3.connect(database_filename)  
     df.to_sql('messages',con = conn, if_exists='replace',index=False)
 
 
 def main():
+
+    '''
+    the start of the program the system input will take the file name of
+    messages, categories and database and execute other functions on them 
+
+    paramerter
+    -------------
+    None
+
+    return
+    ------------
+    None 
+
+    ''' 
     if len(sys.argv) == 4:
 
         messages_filepath, categories_filepath, database_filepath = sys.argv[1:]

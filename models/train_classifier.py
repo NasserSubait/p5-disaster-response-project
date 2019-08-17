@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 import sqlite3
 import re
+import pickle
+import compress_pickle as cp
 
 import nltk
 from nltk.tokenize import word_tokenize
@@ -20,10 +22,25 @@ from sklearn.pipeline import Pipeline
 from sklearn.metrics import classification_report, accuracy_score
 
 
-
-
 def load_data(database_filepath):
-    conn = sqlite3.connect('../data/DisasterDB.db')
+    
+    '''
+    loading data from a database
+
+    paramerter
+    -------------
+    database_filepath: file path of the database [str]
+    
+
+    return
+    ------------
+    X: a dataframe if the features
+    Y: a dataframe with the target variables 
+    category_names: a list of the columns read from the database
+
+    ''' 
+    
+    conn = sqlite3.connect('../data/'+database_filepath)
     df = pd.read_sql('select * from messages',con = conn)
     X = df['message']
     Y = df.drop(['id','message','original','genre'],axis=1)
@@ -33,7 +50,22 @@ def load_data(database_filepath):
 
 
 def tokenize(text):
+
+    '''
+    A toknize function that process a text to be ready for ML pipeline 
+    that follows NLP pipeline
+
+    paramerter
+    -------------
+    text: a string of text [str]
     
+
+    return
+    ------------
+    clear_text: a tokenize text
+   
+    ''' 
+
     text = text.lower()
     text = re.sub(r"[^a-zA-Z0-9]"," ",text)
     words = word_tokenize(text)
@@ -46,30 +78,69 @@ def tokenize(text):
 
 def build_model():
     
+    '''
+    building a model uses ML pipeline and uses grid search to optimize the model
+
+    paramerter
+    -------------
+    None
+    
+    return
+    ------------
+    ML model ready to be used
+   
+    ''' 
+
     pipeline = Pipeline([
         ('vect', CountVectorizer(tokenizer=tokenize)),
         ('tfidf', TfidfTransformer()),
         ('clf', MultiOutputClassifier(RandomForestClassifier()))
     ])
 
-    param_grid = {
-        'clf__estimator__min_samples_split': [2, 4],
-        'clf__estimator__max_features': ['log2', 'auto'],
-        'clf__estimator__n_estimators': [100, 250],
-    }
+    parameters = {'clf__estimator__n_estimators': [50, 100],
+                  'clf__estimator__min_samples_split': [2, 3, 4],
+                  'clf__estimator__criterion': ['entropy', 'gini']
+                 }
 
-    cv = GridSearchCV(pipeline, param_grid=param_grid)
+    cv = GridSearchCV(pipeline, param_grid=parameters)
 
-    cv.fit(X_train,y_train)
-
+    
     return cv
 
 def evaluate_model(model, X_test, Y_test, category_names):
-    pass
+
+    '''
+    evaluate a ML model
+
+    paramerter
+    -------------
+    model: a ML object model
+    X_test: a series or dataframe
+    Y_test: a series or dataframe
+    category_names: a list of the categories that will be evaluated against
+    
+    return
+    ------------
+    a report of all categories in the databases and confusion matrix and f1 score
+   
+    ''' 
+    
+    y_predection = model.predict(X_test)
+
+    for i in range(len(category_names)):
+        print('category: '+category_names[i]+'\n')
+        print( classification_report(Y_test.iloc[:, i].values, y_predection[:, i]))
+        print('Accuracy of %25s: %.2f' %(category_names[i], accuracy_score(Y_test.iloc[:, i].values, y_predection[:,i])))
+        print('\n----------------------------------------------------------------')
+    
 
 
 def save_model(model, model_filepath):
-    pass
+
+    """ Saves the model passed given the name of the file"""
+
+    cp.dump(model,model_filepath,compression='lzma',set_default_extension=False)
+    
 
 
 def main():
